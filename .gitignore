@@ -1,0 +1,36 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# --- Виртуальные окружения ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Тестирование и покрытие ---
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+# htmlcov/
+# data/aeroplanes.json
+
+# --- PyCharm / IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- ОС (Windows/Mac) ---
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -91,7 +91,7 @@ def test_user_interaction_full_flow(capsys):
 
     # Эмулируем ввод пользователя:
     # 1 - загрузить страну (TestCountry) -> 2 - топ 1 -> 3 - фильтр (Country1) -> 4 - высота (500-1500) ->
-    # 5 - сохранить -> 6 - показать -> 7 - удалить (CALL1) -> 9 - неверный ввод -> 0 - выход
+    # 5 - сохранить -> 6 - показать -> 7 - удалить (CALL1) -> 99 - неверный ввод -> 0 - выход
     inputs = [
         "1", "TestCountry",
         "2", "1",
@@ -100,7 +100,7 @@ def test_user_interaction_full_flow(capsys):
         "5",
         "6",
         "7", "CALL1",
-        "9",
+        "99",  # невалидный выбор
         "0"
     ]
 
@@ -108,7 +108,9 @@ def test_user_interaction_full_flow(capsys):
             patch("main.OpenSkyAPI.get_aeroplanes", return_value=mock_states), \
             patch("main.JSONSaver.add_aeroplane") as mock_add, \
             patch("main.JSONSaver.get_aeroplanes", return_value=[{"callsign": "CALL1"}]), \
-            patch("main.JSONSaver.delete_aeroplane") as mock_delete:
+            patch("main.JSONSaver.delete_aeroplane") as mock_delete, \
+            patch("main.DBManager"):  # мокаем БД, чтобы тест не подключался к реальной PostgreSQL
+
         # Сбрасываем глобальную переменную перед тестом
         main.current_aeroplanes = []
 

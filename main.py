@@ -1,8 +1,16 @@
 from src.api import OpenSkyAPI
 from src.aeroplane import Aeroplane
 from src.file_saver import JSONSaver
+from src.db_manager import DBManager
+
 # Глобальное состояние для текущих самолетов
 current_aeroplanes = []
+
+# Список стран для загрузки в БД (по заданию минимум 10)
+COUNTRIES = [
+    "Russia", "United States", "Germany", "France", "United Kingdom",
+    "China", "Canada", "Brazil", "Australia", "India"
+]
 
 
 def filter_aeroplanes(aeroplanes, countries):
@@ -44,6 +52,34 @@ def print_aeroplanes(aeroplanes):
         print(a)
 
 
+def load_data_to_db():
+    """Загружает данные по 10 странам и пишет в БД."""
+    api = OpenSkyAPI()
+    db = DBManager()
+    db.clear_aeroplanes()  # Очищаем старые данные перед новым сканированием
+
+    for country in COUNTRIES:
+        print(f"Загрузка данных для: {country}...")
+        try:
+            country_id = db.insert_country(country)
+            states = api.get_aeroplanes(country)
+            if not states:
+                print(f"  Нет самолетов над {country}")
+                continue
+
+            aeroplanes = Aeroplane.cast_to_object_list(states)
+            print(f"  Найдено {len(aeroplanes)} самолетов.")
+
+            for a in aeroplanes:
+                db.insert_aeroplane(a.icao24, a.callsign, a.velocity, a.altitude, country_id)
+
+        except Exception as e:
+            print(f"  Ошибка при загрузке {country}: {e}")
+
+    db.close()
+    print("Загрузка завершена!")
+
+
 def user_interaction():
     global current_aeroplanes
     api = OpenSkyAPI()
@@ -51,20 +87,28 @@ def user_interaction():
 
     while True:
         print("\n--- Меню ---")
-        print("1. Загрузить самолеты по стране")
+        print("1. Загрузить самолеты по стране (API)")
         print("2. Показать топ N самолетов по высоте")
         print("3. Фильтр по стране регистрации")
         print("4. Фильтр по диапазону высот")
         print("5. Сохранить текущие самолеты в JSON")
-        print("6. Показать сохраненные самолеты")
-        print("7. Удалить самолет из файла")
+        print("6. Показать сохраненные самолеты (JSON)")
+        print("7. Удалить самолет из файла (JSON)")
+        print("--- База данных (PostgreSQL) ---")
+        print("8. Загрузить данные по 10 странам в БД")
+        print("9. Показать страны и количество самолетов (БД)")
+        print("10. Показать все самолеты (БД)")
+        print("11. Показать среднюю скорость (БД)")
+        print("12. Показать самолеты быстрее средней (БД)")
+        print("13. Поиск по позывному (БД)")
         print("0. Выход")
+
         choice = input("Выберите действие: ").strip()
 
         if choice == "0":
             break
 
-        if choice == "1":
+        elif choice == "1":
             country = input("Введите название страны: ").strip()
             try:
                 states = api.get_aeroplanes(country)
@@ -134,6 +178,33 @@ def user_interaction():
                 for a in to_delete:
                     json_saver.delete_aeroplane(a)
                 print("Удалено.")
+
+        elif choice == "8":
+            load_data_to_db()
+
+        elif choice in ["9", "10", "11", "12", "13"]:
+            db = DBManager()
+            if choice == "9":
+                print("\nСтрана | Количество самолетов:")
+                for row in db.get_countries_and_aeroplanes_count():
+                    print(f"{row['name']}: {row['count']}")
+            elif choice == "10":
+                print("\nВсе самолеты в БД:")
+                for row in db.get_all_aeroplanes():
+                    print(dict(row))
+            elif choice == "11":
+                avg = db.get_avg_speed()
+                print(f"\nСредняя скорость: {avg:.2f} м/с")
+            elif choice == "12":
+                print("\nСамолеты быстрее средней:")
+                for row in db.get_aeroplanes_with_higher_speed():
+                    print(dict(row))
+            elif choice == "13":
+                keyword = input("Введите часть позывного: ")
+                print(f"\nРезультаты поиска по '{keyword}':")
+                for row in db.get_aeroplanes_with_keyword(keyword):
+                    print(dict(row))
+            db.close()
 
         else:
             print("Неверный выбор.")

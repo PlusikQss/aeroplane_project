@@ -6,23 +6,22 @@ from src.db_manager import DBManager
 # Глобальное состояние для текущих самолетов
 current_aeroplanes = []
 
-# Список стран для загрузки в БД (по заданию минимум 10)
 COUNTRIES = [
     "Russia", "United States", "Germany", "France", "United Kingdom",
     "China", "Canada", "Brazil", "Australia", "India"
 ]
 
 
-def filter_aeroplanes(aeroplanes, countries):
-    """Фильтрация по стране регистрации."""
+def filter_aeroplanes(aeroplanes: list, countries: list) -> list:
+    """Фильтрует список самолетов по стране регистрации."""
     if not countries:
         return aeroplanes
     return [a for a in aeroplanes
             if any(c.lower() in a.origin_country.lower() for c in countries)]
 
 
-def get_aeroplanes_by_altitude(aeroplanes, altitude_range: str):
-    """Фильтрация по диапазону высот. altitude_range: 'min-max'."""
+def get_aeroplanes_by_altitude(aeroplanes: list, altitude_range: str) -> list:
+    """Фильтрует самолеты по диапазону высот."""
     try:
         if not altitude_range or "-" not in altitude_range:
             return aeroplanes
@@ -35,16 +34,18 @@ def get_aeroplanes_by_altitude(aeroplanes, altitude_range: str):
         return aeroplanes
 
 
-def sort_aeroplanes(aeroplanes):
-    """Сортировка по высоте по убыванию."""
+def sort_aeroplanes(aeroplanes: list) -> list:
+    """Сортирует самолеты по высоте по убыванию."""
     return sorted(aeroplanes, key=lambda a: a.altitude, reverse=True)
 
 
-def get_top_aeroplanes(aeroplanes, n: int):
+def get_top_aeroplanes(aeroplanes: list, n: int) -> list:
+    """Возвращает топ N самолетов."""
     return aeroplanes[:n]
 
 
-def print_aeroplanes(aeroplanes):
+def print_aeroplanes(aeroplanes: list) -> None:
+    """Выводит список самолетов в консоль."""
     if not aeroplanes:
         print("Самолеты не найдены.")
         return
@@ -52,11 +53,9 @@ def print_aeroplanes(aeroplanes):
         print(a)
 
 
-def load_data_to_db():
-    """Загружает данные по 10 странам и пишет в БД."""
-    api = OpenSkyAPI()
-    db = DBManager()
-    db.clear_aeroplanes()  # Очищаем старые данные перед новым сканированием
+def load_data_to_db(api: OpenSkyAPI, db: DBManager) -> None:
+    """Загружает данные по 10 странам и записывает в БД."""
+    db.clear_aeroplanes()
 
     for country in COUNTRIES:
         print(f"Загрузка данных для: {country}...")
@@ -76,14 +75,12 @@ def load_data_to_db():
         except Exception as e:
             print(f"  Ошибка при загрузке {country}: {e}")
 
-    db.close()
     print("Загрузка завершена!")
 
 
-def user_interaction():
+def user_interaction(api: OpenSkyAPI, json_saver: JSONSaver, db_factory: type) -> None:
+    """Запускает интерактивное меню для работы с API, JSON и БД."""
     global current_aeroplanes
-    api = OpenSkyAPI()
-    json_saver = JSONSaver()
 
     while True:
         print("\n--- Меню ---")
@@ -107,7 +104,6 @@ def user_interaction():
 
         if choice == "0":
             break
-
         elif choice == "1":
             country = input("Введите название страны: ").strip()
             try:
@@ -119,7 +115,6 @@ def user_interaction():
                 print(f"Загружено {len(current_aeroplanes)} самолетов.")
             except Exception as e:
                 print(f"Ошибка: {e}")
-
         elif choice == "2":
             if not current_aeroplanes:
                 print("Сначала загрузите самолеты (пункт 1).")
@@ -130,17 +125,14 @@ def user_interaction():
                 print_aeroplanes(top)
             except ValueError:
                 print("N должно быть целым числом.")
-
         elif choice == "3":
             if not current_aeroplanes:
                 print("Сначала загрузите самолеты (пункт 1).")
                 continue
-            raw = input("Введите страны регистрации через запятую "
-                        "(например: United States, Germany): ")
+            raw = input("Введите страны регистрации через запятую (например: United States, Germany): ")
             countries = [c.strip() for c in raw.split(",") if c.strip()]
             filtered = filter_aeroplanes(current_aeroplanes, countries)
             print_aeroplanes(filtered)
-
         elif choice == "4":
             if not current_aeroplanes:
                 print("Сначала загрузите самолеты (пункт 1).")
@@ -148,7 +140,6 @@ def user_interaction():
             alt_range = input("Введите диапазон высот (например, 1000-10000): ").strip()
             filtered = get_aeroplanes_by_altitude(current_aeroplanes, alt_range)
             print_aeroplanes(filtered)
-
         elif choice == "5":
             if not current_aeroplanes:
                 print("Сначала загрузите самолеты (пункт 1).")
@@ -156,7 +147,6 @@ def user_interaction():
             for a in current_aeroplanes:
                 json_saver.add_aeroplane(a)
             print("Сохранено (дубликаты пропущены).")
-
         elif choice == "6":
             data = json_saver.get_aeroplanes()
             if not data:
@@ -164,26 +154,24 @@ def user_interaction():
             else:
                 for item in data:
                     print(item)
-
         elif choice == "7":
             if not current_aeroplanes:
                 print("Сначала загрузите самолеты (пункт 1).")
                 continue
             callsign = input("Введите позывной для удаления: ").strip()
-            to_delete = [a for a in current_aeroplanes
-                         if a.callsign.lower() == callsign.lower()]
+            to_delete = [a for a in current_aeroplanes if a.callsign.lower() == callsign.lower()]
             if not to_delete:
                 print("Самолет не найден.")
             else:
                 for a in to_delete:
                     json_saver.delete_aeroplane(a)
                 print("Удалено.")
-
         elif choice == "8":
-            load_data_to_db()
-
+            db = db_factory()
+            load_data_to_db(api, db)
+            db.close()
         elif choice in ["9", "10", "11", "12", "13"]:
-            db = DBManager()
+            db = db_factory()
             if choice == "9":
                 print("\nСтрана | Количество самолетов:")
                 for row in db.get_countries_and_aeroplanes_count():
@@ -205,10 +193,12 @@ def user_interaction():
                 for row in db.get_aeroplanes_with_keyword(keyword):
                     print(dict(row))
             db.close()
-
         else:
             print("Неверный выбор.")
 
 
 if __name__ == "__main__":
-    user_interaction()
+    # Внедрение зависимостей (Dependency Injection)
+    api_instance = OpenSkyAPI()
+    json_saver_instance = JSONSaver()
+    user_interaction(api_instance, json_saver_instance, DBManager)

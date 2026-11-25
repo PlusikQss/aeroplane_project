@@ -118,8 +118,7 @@ def test_user_interaction_full_flow(capsys):
         main.user_interaction()
 
     # Перехватываем всё, что программа вывела в консоль
-    captured = capsys.readouterr()
-
+    captured = capsys.readouterr
     # Проверяем, что программа прошла по всем веткам
     assert "Загружено 1 самолетов." in captured.out
     assert "Самолет CALL1" in captured.out

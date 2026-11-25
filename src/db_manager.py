@@ -46,7 +46,7 @@ class DBManager:
     def get_avg_speed(self):
         """Средняя скорость."""
         with self.conn.cursor() as cur:
-            cur.execute("SELECT AVG(velocity) FROM aeroplanes WHERE velocity > 0;")
+            cur.execute("SELECT AVG(velocity) FROM aeroplanes;")
             result = cur.fetchone()[0]
             return result if result else 0.0
 
@@ -57,7 +57,8 @@ class DBManager:
                 SELECT a.callsign, a.velocity, c.name as country
                 FROM aeroplanes a
                 JOIN countries c ON a.country_id = c.id
-                WHERE a.velocity > (SELECT AVG(velocity) FROM aeroplanes WHERE velocity > 0);
+                -- Убрали WHERE velocity > 0
+                WHERE a.velocity > (SELECT AVG(velocity) FROM aeroplanes);
             """)
             return cur.fetchall()
 
